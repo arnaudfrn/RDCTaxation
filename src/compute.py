@@ -34,9 +34,18 @@ def MAPE(data, actual, prediction):
     """
     Compute MAPE over test set
     """
+    low = data[data[actual] < 1000]
+    high = data[data[actual] > 1000]
+    
+    
     s = np.absolute(data[actual] - data[prediction])/data[actual]
-    mape = (np.sum(s)/s.size)*100
-    return(mape)
+    s_low = np.absolute(low[actual] - low[prediction])/low[actual]
+    s_high = np.absolute(high[actual] - high[prediction])/high[actual]
+    
+    met = [(np.sum(elem)/elem.size)*100 for elem in [s, s_low, s_high]]
+    
+    print('MAPE overall is {:.4f} \n MAPE under 1000$ is {:.4f} \n MAPE over 1000$ is {:.4f}'.format(met[0], met[1], met[2]))
+    return None
 
 
 def smote_apply(X_train, y_train, threshold = 5000):   
@@ -49,12 +58,10 @@ def smote_apply(X_train, y_train, threshold = 5000):
 
     X_train: pd.DataFrame
     y_train: pd.DataFrame
-
-
     """
     X_train.loc[:,'target'] = y_train
     col_names = list(X_train.columns)
-    bool_target = np.where(X_train['target'] > 5000, 1, 0)
+    bool_target = np.where(X_train['target'] > threshold, 1, 0)
 
     #Apply SMOTE Method
     smote = SMOTE(random_state=12, ratio = 1.0)
@@ -75,4 +82,15 @@ def scaling_apply(X_train, X_test):
     X_test = pd.DataFrame(scaler.transform(X_test), columns = col_names)
     return X_train, X_test
 
+def create_mlp(dim):
+    model = tf.keras.models.Sequential()
+    model.add(tf.keras.layers.Dense(8, input_dim=dim, activation="relu"))
+    #model.add(tf.keras.layers.Dense(4, activation="relu"))
+    model.add(tf.keras.layers.Dense(1, activation="linear"))
+    model.compile(optimizer='adam', loss='mean_squared_error',  metrics=['mae','accuracy'])
+    return model
+
+def mape_scoring(y_true, y_pred): 
+    y_true, y_pred = np.array(y_true), np.array(y_pred)
+    return np.mean(np.abs((y_true - y_pred) / y_true)) * 100
 
