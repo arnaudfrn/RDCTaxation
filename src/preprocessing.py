@@ -202,24 +202,47 @@ def Get_3_NN(train, test = None):
         mean_value = []
         for k in range(arr_test.shape[0]):
             ind = Find3Smallest(arr = empty[k], n = len(empty[k]))
-            mean_value.append(train.loc[ind , 'value'].mean())
+            mean_value.append(train.reset_index(drop = True).loc[ind , 'value'].mean())
 
     return mean_value
     
 
-def Train_Dist_N(df, thresh):
-    arr_l = data[['longitude','latitude']].to_numpy()
+def Get_Dist_N(train, thresh, test = None):
+    """
+    function computing the average price of the houses in a given radius for train and test set
+    Input train: df with longitude, latitude and value 
+    Input thresh: max distance to houses to consider in KM
+    Input test: not mandatory, if nothing passed compute only on the traning, if dataframe passed, return computation for the test set 
+                based on value and distance from the training set
     
-    empty = np.zeros((arr_l.shape[0],arr_l.shape[0]))
-    #### change this for test set 
-    for i in range(arr_l.shape[0]):
-        for j in range(arr_l.shape[0]):
-            empty[i,j] = haversine(arr_l[i], arr_l[j]) #long lat of 1 point
-            
-    mean_value = []
-    for k in range(arr_l.shape[0]):
-        ind = NeightborLessThan(arr = empty[k], n = len(empty[k]), thresh = thresh)
-        mean_value.append(data.loc[ind , 'value'].mean())
+    output mean value: list of value to be concatenated on datasets
+    """
+    arr_l = train[['longitude','latitude']].to_numpy()
     
+    if test is None:
+        empty = np.zeros((arr_l.shape[0],arr_l.shape[0]))
+
+        for i in range(arr_l.shape[0]):
+            for j in range(arr_l.shape[0]):
+                empty[i,j] = haversine(arr_l[i], arr_l[j]) #long lat of 1 point
+        
+        mean_value = []
+        for k in range(arr_l.shape[0]):
+            ind = NeightborLessThan(arr = empty[k], n = len(empty[k]), thresh = thresh)
+            mean_value.append(train.reset_index(drop = True).loc[ind , 'value'].mean())
+                
+    else:
+        arr_test = test[['longitude','latitude']].to_numpy()
+        empty = np.zeros((arr_test.shape[0],arr_l.shape[0]))
+
+        for i in range(arr_test.shape[0]):
+            for j in range(arr_l.shape[0]):
+                empty[i,j] = haversine(arr_test[i], arr_l[j]) #long lat of 1 point
+                
+        mean_value = []
+        for k in range(arr_test.shape[0]):
+            ind = NeightborLessThan(arr = empty[k], n = len(empty[k]), thresh = thresh)
+            mean_value.append(train.reset_index(drop = True).loc[ind , 'value'].mean())
+        
     return mean_value
 
