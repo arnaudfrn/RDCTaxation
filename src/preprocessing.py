@@ -3,6 +3,7 @@ import numpy as np
 from src.compute import impute_basic, MAPE, feature_preselection, smote_apply
 from sklearn import base
 from sklearn.model_selection import KFold
+from haversine import haversine, Unit
 
 
 
@@ -110,7 +111,7 @@ def NeightborLessThan(arr, n, thresh):
 
 
 def Find3Smallest(arr, n): 
-    MAX. = 1000000
+    MAX = 1000000
 
     firstmin = MAX
     secmin = MAX
@@ -151,7 +152,7 @@ def Find3Smallest(arr, n):
     return [ind_fist, ind_sec, ind_third]
 
 
-    def Train_Dist_N(df, thresh):
+def Train_Dist_N(df, thresh):
     arr_l = data[['longitude','latitude']].to_numpy()
     
     empty = np.zeros((arr_l.shape[0],arr_l.shape[0]))
@@ -167,8 +168,60 @@ def Find3Smallest(arr, n):
     
     return mean_value
 
+def Find5Smallest(arr, n, number): 
+    """
+    function takes a 1-d array of size n and return a list of indices of the 3 smallest
+    """
+    MAX = 100000
+    firstmin = MAX
+    secmin = MAX
+    thirdmin = MAX
+    fourthmin = MAX
+    fifthmin = MAX
+    ind_fist = 0 
+    ind_sec = 0 
+    ind_third = 0
+    ind_fourth = 0
+    ind_fifth = 0
+  
+    for i in range(0, n):  
+  
+        if arr[i] < firstmin and arr[i] != 0:
+            thirdmin = secmin 
+            secmin = firstmin
+            fourthmin = thirdmin
+            fifthmin = fourthmin
+            firstmin = arr[i]
+            ind_fist = i
 
-def Get_3_NN(train, test = None):
+        elif arr[i] < secmin and arr[i] != 0: 
+            thirdmin = secmin
+            fourthmin = thirdmin
+            fifthmin = fourthmin
+            secmin = arr[i]
+            ind_sec = i
+  
+        elif arr[i] < thirdmin and arr[i] != 0:
+            fourthmin = thirdmin
+            fifthmin = fourthmin
+            thirdmin = arr[i] 
+            ind_third = i
+            
+        elif arr[i] < fourthmin and arr[i] != 0:
+            fifthmin = fourthmin 
+            fourthmin = arr[i]
+            ind_fourth = i
+            
+        elif arr[i] < fifthmin and arr[i] != 0: 
+            fifthmin = arr[i]
+            ind_fifth = i
+            
+            
+  
+    return [ind_fist, ind_sec, ind_third, ind_fourth, ind_fifth]
+
+
+def Get_3_NN(X_train, y_train, X_test=None, y_test=None):
     """
     function computing the average price of the 3 closest houses for train and test set
     Input train: df with longitude, latitude and value 
@@ -177,9 +230,13 @@ def Get_3_NN(train, test = None):
     
     output mean value: list of value to be concatenated on datasets
     """
+    y_train = pd.DataFrame(y_train).rename(columns={0 : "value"})
+    train = pd.concat([X_train, y_train], axis=1)
+
+
     arr_l = train[['longitude','latitude']].to_numpy()
     
-    if test is None:
+    if X_test is None:
         empty = np.zeros((arr_l.shape[0],arr_l.shape[0]))
 
         for i in range(arr_l.shape[0]):
@@ -192,6 +249,11 @@ def Get_3_NN(train, test = None):
             mean_value.append(train.loc[ind , 'value'].mean())
                 
     else:
+
+        y_test = pd.DataFrame(y_test).rename(columns={0 : "value"})
+        test = pd.concat([X_test.reset_index(drop=True), y_test], axis=1)
+
+
         arr_test = test[['longitude','latitude']].to_numpy()
         empty = np.zeros((arr_test.shape[0],arr_l.shape[0]))
 
@@ -207,7 +269,7 @@ def Get_3_NN(train, test = None):
     return mean_value
     
 
-def Get_Dist_N(train, thresh, test = None):
+def Get_Dist_N(X_train, y_train, thresh, X_test=None, y_test=None):
     """
     function computing the average price of the houses in a given radius for train and test set
     Input train: df with longitude, latitude and value 
@@ -217,9 +279,12 @@ def Get_Dist_N(train, thresh, test = None):
     
     output mean value: list of value to be concatenated on datasets
     """
+    y_train = pd.DataFrame(y_train).rename(columns={0 : "value"})
+    train = pd.concat([X_train, y_train], axis=1)
+
     arr_l = train[['longitude','latitude']].to_numpy()
     
-    if test is None:
+    if X_test is None:
         empty = np.zeros((arr_l.shape[0],arr_l.shape[0]))
 
         for i in range(arr_l.shape[0]):
@@ -232,6 +297,10 @@ def Get_Dist_N(train, thresh, test = None):
             mean_value.append(train.reset_index(drop = True).loc[ind , 'value'].mean())
                 
     else:
+        y_test = pd.DataFrame(y_test).rename(columns={0 : "value"})
+        test = pd.concat([X_test.reset_index(drop=True), y_test], axis=1)
+
+
         arr_test = test[['longitude','latitude']].to_numpy()
         empty = np.zeros((arr_test.shape[0],arr_l.shape[0]))
 
