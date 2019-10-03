@@ -1,6 +1,7 @@
 import pandas as pd 
 import numpy as np
-from src.compute import impute_basic, MAPE, feature_preselection, smote_apply
+from src.metrics import  MAPE
+from src.preprocessing import impute_basic, feature_preselection, smote_apply
 from sklearn import base
 from sklearn.model_selection import KFold
 from haversine import haversine, Unit
