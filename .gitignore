@@ -7,3 +7,5 @@ Data/*
 
 __pycache__/*
 /__pycache__/*
+__pycache__/
+catboost_info/
