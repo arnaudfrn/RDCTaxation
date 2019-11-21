@@ -4,3 +4,5 @@
 *.dta
 *.csv
 Data/*
+
+__pycache__/*
