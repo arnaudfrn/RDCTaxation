@@ -356,3 +356,17 @@ def Get_Dist_N(X_train, y_train, thresh, X_test=None, y_test=None):
             mean_value.append(train.reset_index(drop = True).loc[ind , 'value'].mean())
         
     return mean_value
+
+
+
+def group(series):
+    if series < 500:
+        return 0
+    elif 500 <= series < 1000:
+        return 1
+    elif 1000 <= series < 2000:
+        return 2
+    elif 2000 <= series:
+        return 3
+
+        
