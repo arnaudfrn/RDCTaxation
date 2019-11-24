@@ -311,6 +311,7 @@ def Get_5_NN(X_train, y_train, X_test=None, y_test=None):
 
     return mean_value
 
+
 def Get_Dist_N(X_train, y_train, thresh, X_test=None, y_test=None):
     """
     function computing the average price of the houses in a given radius for train and test set
@@ -321,17 +322,17 @@ def Get_Dist_N(X_train, y_train, thresh, X_test=None, y_test=None):
     
     output mean value: list of value to be concatenated on datasets
     """
-    y_train = pd.DataFrame(y_train).rename(columns={0 : "value"})
+    y_train = pd.DataFrame(y_train).rename(columns={0: "value"})
     train = pd.concat([X_train, y_train], axis=1)
 
-    arr_l = train[['longitude','latitude']].to_numpy()
+    arr_l = train[['longitude', 'latitude']].to_numpy()
     
     if X_test is None:
         empty = np.zeros((arr_l.shape[0],arr_l.shape[0]))
 
         for i in range(arr_l.shape[0]):
             for j in range(arr_l.shape[0]):
-                empty[i,j] = haversine(arr_l[i], arr_l[j]) #long lat of 1 point
+                empty[i, j] = haversine(arr_l[i], arr_l[j])  # long lat of 1 point
         
         mean_value = []
         for k in range(arr_l.shape[0]):
@@ -342,18 +343,17 @@ def Get_Dist_N(X_train, y_train, thresh, X_test=None, y_test=None):
         y_test = pd.DataFrame(y_test).rename(columns={0 : "value"})
         test = pd.concat([X_test.reset_index(drop=True), y_test], axis=1)
 
-
-        arr_test = test[['longitude','latitude']].to_numpy()
-        empty = np.zeros((arr_test.shape[0],arr_l.shape[0]))
+        arr_test = test[['longitude', 'latitude']].to_numpy()
+        empty = np.zeros((arr_test.shape[0], arr_l.shape[0]))
 
         for i in range(arr_test.shape[0]):
             for j in range(arr_l.shape[0]):
-                empty[i,j] = haversine(arr_test[i], arr_l[j]) #long lat of 1 point
+                empty[i, j] = haversine(arr_test[i], arr_l[j])  # long lat of 1 point
                 
         mean_value = []
         for k in range(arr_test.shape[0]):
-            ind = NeightborLessThan(arr = empty[k], n = len(empty[k]), thresh = thresh)
-            mean_value.append(train.reset_index(drop = True).loc[ind , 'value'].mean())
+            ind = NeightborLessThan(arr=empty[k], n=len(empty[k]), thresh=thresh)
+            mean_value.append(train.reset_index(drop=True).loc[ind, 'value'].mean())
         
     return mean_value
 
@@ -369,4 +369,9 @@ def group(series):
     elif 2000 <= series:
         return 3
 
-        
+
+
+
+
+
+
