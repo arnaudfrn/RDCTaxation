@@ -34,9 +34,9 @@ class SmoteRegression(BaseEstimator, TransformerMixin):
     Create balanced dataset for value > and < to treshold. Aims at imprving accuracy on high value houses
 
     Add Examples
-
+    Add explanation
     """
-    def __init__(self, threshold=2000, ratio=1.0, random_state=0):
+    def __init__(self, threshold=2000, ratio=1.0, random_state=0, smote=None):
         """
 
         :param threshold:
@@ -46,9 +46,9 @@ class SmoteRegression(BaseEstimator, TransformerMixin):
         self.threshold = threshold
         self.ratio = ratio
         self.random_state = random_state
+        self.smote_ = smote
 
-
-    def fit(self, X, y=None, target_name=None):
+    def fit(self, X, y=None):
         """
 
         :param X:
@@ -56,12 +56,8 @@ class SmoteRegression(BaseEstimator, TransformerMixin):
         :param target_name:
         :return:
         """
-        #Add assert
-        assert isinstance(target_name, str)
-        self.target_name = target_name
-
         # Instantiate SMOTE from ImbLearn
-        self.smote = SMOTE(random_state=self.random_state, ratio=self.ratio)
+        self.smote_ = SMOTE(random_state=self.random_state, ratio=self.ratio)
 
         return self
 
@@ -74,13 +70,13 @@ class SmoteRegression(BaseEstimator, TransformerMixin):
         """
         # Add assertion
 
-        X.loc[:, target_name] = y
+        X.loc[:, 'target'] = y
         col_names = list(X.columns)
-        bool_target = np.where(X[self.target_name] > self.threshold, 1, 0)
+        bool_target = np.where(X['target'] > self.threshold, 1, 0)
 
-        X, bool_target = smote.fit_sample(X, bool_target)
+        X, bool_target = self.smote_.fit_sample(X, bool_target)
         X = pd.DataFrame(X, columns=col_names)
-        y = X[self.target_name].values.ravel()
+        y = X['target'].values.ravel()
         return X, y
 
 
