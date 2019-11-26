@@ -22,3 +22,13 @@ def MAPE(data, actual, prediction):
     
     print('MAPE overall is {:.4f} \n MAPE under 1000$ is {:.4f} \n MAPE over 1000$ is {:.4f}'.format(met[0], met[1], met[2]))
     return None
+
+def group(series):
+    if series < 500:
+        return 0
+    elif 500 <= series < 1000:
+        return 1
+    elif 1000 <= series < 2000:
+        return 2
+    elif 2000 <= series:
+        return 3

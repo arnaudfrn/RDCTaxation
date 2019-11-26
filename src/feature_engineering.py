@@ -12,13 +12,11 @@ def dist_feats(df, feat_name):
     return df
 
 
-
 class KFoldTargetEncoder(base.BaseEstimator, base.TransformerMixin):
 """
-Unfinished business -> Check https://github.com/scikit-learn-contrib/categorical-encoding
+Bugged
 """
-    def __init__(self,n_fold=5,verbosity=False,discardOriginal_col=False):
-
+    def __init__(self, n_fold=5, verbosity=False, discardOriginal_col=False):
         self.n_fold = n_fold
         self.verbosity = verbosity
         self.discardOriginal_col = discardOriginal_col
@@ -26,22 +24,23 @@ Unfinished business -> Check https://github.com/scikit-learn-contrib/categorical
         self.targetName = None
         self._y = None
         self._X = None
+        self.encodedName = None
+
 
     def fit(self, X, y, colnames):
         self._y = y
-        self._X = X
         self.colnames = colnames
 
-        assert(type(self.colnames) == str)
-        assert(self.colnames in X.columns)
+        assert (type(self.colnames) == str)
+        assert (self.colnames in X.columns)
 
         self.targetName = 'target_'
-        X = pd.concat([X,pd.Series(self._y, name='target_')], axis = 1)
+        X = pd.concat([X, pd.Series(self._y, name='target_')], axis=1)
         mean_of_target = X[self.targetName].mean()
         max_of_target = X[self.targetName].max()
         min_of_target = X[self.targetName].min()
 
-        kf = KFold(n_splits = self.n_fold, shuffle = False, random_state=2019)
+        kf = KFold(n_splits=self.n_fold, shuffle=False, random_state=2019)
 
         col_mean_name = self.colnames + '_' + 'mean'
         col_max_name = self.colnames + '_' + 'max'
@@ -52,47 +51,50 @@ Unfinished business -> Check https://github.com/scikit-learn-contrib/categorical
 
         for tr_ind, val_ind in kf.split(X):
             X_tr, X_val = X.iloc[tr_ind], X.iloc[val_ind]
-            X.loc[X.index[val_ind], col_mean_name] = X_val[self.colnames].map(X_tr.groupby(self.colnames)[self.targetName].mean())
-            X.loc[X.index[val_ind], col_max_name] = X_val[self.colnames].map(X_tr.groupby(self.colnames)[self.targetName].max())
-            X.loc[X.index[val_ind], col_min_name] = X_val[self.colnames].map(X_tr.groupby(self.colnames)[self.targetName].min())
+            X.loc[X.index[val_ind], col_mean_name] = X_val[self.colnames].map(
+                X_tr.groupby(self.colnames)[self.targetName].mean())
+            X.loc[X.index[val_ind], col_max_name] = X_val[self.colnames].map(
+                X_tr.groupby(self.colnames)[self.targetName].max())
+            X.loc[X.index[val_ind], col_min_name] = X_val[self.colnames].map(
+                X_tr.groupby(self.colnames)[self.targetName].min())
 
-        X[col_mean_name].fillna(mean_of_target, inplace = True)
-        X[col_max_name].fillna(max_of_target, inplace = True)
-        X[col_min_name].fillna(min_of_target, inplace = True)
-        X.drop(self.targetName, axis=1, inplace = True)
+        X[col_mean_name].fillna(mean_of_target, inplace=True)
+        X[col_max_name].fillna(max_of_target, inplace=True)
+        X[col_min_name].fillna(min_of_target, inplace=True)
+        X.drop(self.targetName, axis=1, inplace=True)
 
-        val = X[[self.colnames, col_mean_name, col_max_name, col_min_name]].groupby(self.colnames).mean().reset_index()
+        self._X = X
+        self.encodedName = [col_mean_name, col_min_name, col_max_name]
 
-        dd = {}
-        for index, row in val.iterrows():
-            dd[row[self.colnames]] = [row[col_mean_name], row[col_max_name], row[col_min_name]]
-            #X[self.encodedName] = X[self.colnames]
-
-        return dd
+        return self
 
 
-    def transform(self,X, y=None):
+    def transform(self, X, y=None):
         if y is None:
-            mean =  self._X[[self.colnames, self.encodedName]].groupby(self.colnames).mean().reset_index()
+            for encod in self.encodedName:
+                mean = self._X[[self.colnames, encod]].groupby(self.colnames).mean().reset_index()
 
-            dd = {}
-            for index, row in mean.iterrows():
-                dd[row[self.colnames]] = row[self.encodedName]
-                X[self.encodedName] = X[self.colnames]
-            X = X.applymap(dd.get)
+                dd = {}
+                for index, row in mean.iterrows():
+                    dd[row[self.colnames]] = row[encod]
+
+                X[encod] = X[self.colnames]
+                X = X.replace({encod: dd})
+            return X
 
         else:
 
+            X = self._X
             if self.verbosity:
                 encoded_feature = X[col_mean_name].values
                 print('Correlation between the new feature, {} and, {} is {}.'.format(col_mean_name,
-                                                                                          self.targetName,
-                                                                                          np.corrcoef(X[self.targetName].values, encoded_feature)[0][1]))
+                                                                                      self.targetName,
+                                                                                      np.corrcoef(X[self.targetName].values,
+                                                                                                  encoded_feature)[0][1]))
             if self.discardOriginal_col:
                 X = X.drop(self.colnames, axis=1)
 
-
-        return X
+            return X
 
 
 class KFoldTargetEncoderTest(base.BaseEstimator, base.TransformerMixin):
@@ -115,7 +117,6 @@ class KFoldTargetEncoderTest(base.BaseEstimator, base.TransformerMixin):
             X[self.encodedName] = X[self.colNames]
         X = X.applymap(dd.get)  
         return X
-
 
 
 
