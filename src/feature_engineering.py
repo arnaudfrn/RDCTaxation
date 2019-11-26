@@ -8,31 +8,47 @@ from haversine import haversine, Unit
 
 
 def dist_feats(df, feat_name):   
-    df['sum_dist'] = df[dist_feats_int].sum(axis=1)
+    df['sum_dist'] = df[feat_name].sum(axis=1)
     return df
 
 
 class KFoldTargetEncoder(base.BaseEstimator, base.TransformerMixin):
-"""
-Bugged
-"""
+    """
+    Use K-Fold target encoding for categorical variable to reduce overfitting in target encoding
+    Follows SKLearn API
+    """
     def __init__(self, n_fold=5, verbosity=False, discardOriginal_col=False):
+        """
+
+        :param n_fold: Number of folds to use in the CV, default is 5
+        :param verbosity: Give info at the end of training on correlation between new features and target
+        Default is False
+        :param discardOriginal_col: Remove original column in the Df - Default is False
+        """
         self.n_fold = n_fold
         self.verbosity = verbosity
         self.discardOriginal_col = discardOriginal_col
-        self.colnames = None
+        self.colname = None
         self.targetName = None
         self._y = None
         self._X = None
         self.encodedName = None
 
+    def fit(self, X, y, colname):
+        """
+        Fit the encoder in a out-of-fold manner, when fold does not contain the desired category then it impute by the
+         mean across all categories
 
-    def fit(self, X, y, colnames):
+        :param X: pd.DataFrame of shape [n_individual]x[nb_features]
+        :param y: np.array of shape [n_individual]x1
+        :param colname: Name of column to target encode, must be string
+        :return: Self
+        """
         self._y = y
-        self.colnames = colnames
+        self.colname = colname
 
-        assert (type(self.colnames) == str)
-        assert (self.colnames in X.columns)
+        assert (type(self.colname) == str)
+        assert (self.colname in X.columns)
 
         self.targetName = 'target_'
         X = pd.concat([X, pd.Series(self._y, name='target_')], axis=1)
@@ -42,21 +58,21 @@ Bugged
 
         kf = KFold(n_splits=self.n_fold, shuffle=False, random_state=2019)
 
-        col_mean_name = self.colnames + '_' + 'mean'
-        col_max_name = self.colnames + '_' + 'max'
-        col_min_name = self.colnames + '_' + 'min'
+        col_mean_name = self.colname + '_' + 'mean'
+        col_max_name = self.colname + '_' + 'max'
+        col_min_name = self.colname + '_' + 'min'
         X[col_mean_name] = np.nan
         X[col_max_name] = np.nan
         X[col_min_name] = np.nan
 
         for tr_ind, val_ind in kf.split(X):
             X_tr, X_val = X.iloc[tr_ind], X.iloc[val_ind]
-            X.loc[X.index[val_ind], col_mean_name] = X_val[self.colnames].map(
-                X_tr.groupby(self.colnames)[self.targetName].mean())
-            X.loc[X.index[val_ind], col_max_name] = X_val[self.colnames].map(
-                X_tr.groupby(self.colnames)[self.targetName].max())
-            X.loc[X.index[val_ind], col_min_name] = X_val[self.colnames].map(
-                X_tr.groupby(self.colnames)[self.targetName].min())
+            X.loc[X.index[val_ind], col_mean_name] = X_val[self.colname].map(
+                X_tr.groupby(self.colname)[self.targetName].mean())
+            X.loc[X.index[val_ind], col_max_name] = X_val[self.colname].map(
+                X_tr.groupby(self.colname)[self.targetName].max())
+            X.loc[X.index[val_ind], col_min_name] = X_val[self.colname].map(
+                X_tr.groupby(self.colname)[self.targetName].min())
 
         X[col_mean_name].fillna(mean_of_target, inplace=True)
         X[col_max_name].fillna(max_of_target, inplace=True)
@@ -68,56 +84,40 @@ Bugged
 
         return self
 
-
     def transform(self, X, y=None):
+        """
+        If train set is passed, MUST pass y vector as well.
+        If test set is passed, y is None
+
+        :param X: pd.DataFrame of shape [n_individual]x[nb_features]
+        :param y: np.array of shape [n_individual]x1
+        :return: DataFrame of Xf
+        """
         if y is None:
             for encod in self.encodedName:
-                mean = self._X[[self.colnames, encod]].groupby(self.colnames).mean().reset_index()
-
+                mean = self._X[[self.colname, encod]].groupby(self.colname).mean().reset_index()
+                # print(mean)
                 dd = {}
                 for index, row in mean.iterrows():
-                    dd[row[self.colnames]] = row[encod]
+                    dd[row[self.colname]] = row[encod]
 
-                X[encod] = X[self.colnames]
+                X[encod] = X[self.colname]
                 X = X.replace({encod: dd})
             return X
 
         else:
-
             X = self._X
             if self.verbosity:
                 encoded_feature = X[col_mean_name].values
                 print('Correlation between the new feature, {} and, {} is {}.'.format(col_mean_name,
                                                                                       self.targetName,
-                                                                                      np.corrcoef(X[self.targetName].values,
-                                                                                                  encoded_feature)[0][1]))
+                                                                                      np.corrcoef(
+                                                                                          X[self.targetName].values,
+                                                                                          encoded_feature)[0][1]))
             if self.discardOriginal_col:
-                X = X.drop(self.colnames, axis=1)
+                X = X.drop(self.colname, axis=1)
 
             return X
-
-
-class KFoldTargetEncoderTest(base.BaseEstimator, base.TransformerMixin):
-    
-    def __init__(self,train, colNames, encodedName):
-        
-        self.train = train
-        self.colNames = colNames
-        self.encodedName = encodedName
-        
-    def fit(self, X, y=None):
-        return self    
-
-    def transform(self,X):        
-        mean =  self.train[[self.colNames, self.encodedName]].groupby(self.colNames).mean().reset_index() 
-        
-        dd = {}
-        for index, row in mean.iterrows():
-            dd[row[self.colNames]] = row[self.encodedName]        
-            X[self.encodedName] = X[self.colNames]
-        X = X.applymap(dd.get)  
-        return X
-
 
 
 def NeightborLessThan(arr, n, thresh): 
@@ -190,20 +190,6 @@ def Get_Dist_N(X_train, y_train, thresh, X_test=None, y_test=None):
             mean_value.append(train.reset_index(drop=True).loc[ind, 'value'].mean())
         
     return mean_value
-
-
-
-def group(series):
-    if series < 500:
-        return 0
-    elif 500 <= series < 1000:
-        return 1
-    elif 1000 <= series < 2000:
-        return 2
-    elif 2000 <= series:
-        return 3
-
-
 
 
 class AvgValueKNeighbors(BaseEstimator, TransformerMixin):
