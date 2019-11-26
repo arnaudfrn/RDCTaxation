@@ -372,6 +372,69 @@ def group(series):
 
 
 
+class AvgValueKNeighbors(BaseEstimator, TransformerMixin):
+"""
+Class to compute mean price of K nearest houses in terms of geographical positioning
+The class implements cKDTree which are binary tree optimised for nearest neightboor lookup:
+https://docs.scipy.org/doc/scipy/reference/generated/scipy.spatial.cKDTree.html
 
+Example:
+
+test = AvgValueKNeighbors(k=2)
+test.fit_transform(X, y)
+
+"""
+    def __init__(self, k=3):
+        """
+        :param k: Number of neighbors to consider in the computation
+        """
+        self.k = k
+        self.fitted = False
+        self.tree = None
+        self.col = None
+        self._y = None
+        self.arr = None
+
+    def fit(self, X, y, col=['longitude','latitude']):
+
+        """
+        Sub-select the column
+        Fit the KDTree and save vector y for usage in testing mode if necessary
+
+        :param X: pd.DataFrame of shape [n_individual]x[nb_features]
+        :param y: np.array of shape [n_individual]x1
+        :param col: str, column name to be selected for nearest neighbors
+        :return: self
+        """
+
+        self._y = y
+        self.col = col
+        self.arr = X[self.col].to_numpy()
+        self.tree = scipy.spatial.cKDTree(self.arr)
+        return self
+
+    def transform(self, X, y=None):
+        """
+        Query tree for k nearest neighbors, compute mean value of selected indexes and return mean house value for
+        closest house
+
+        If y is passed, the X will be considered same as training, if no y is passed X will be considered testing data
+        :param X: pd.DataFrame, either training data or testing data
+        :param y: np.Array
+        :return:
+        """
+        mean_value = []
+        if y is not None:
+            _, indexes = self.tree.query(self.arr, k=self.k)
+            #find points and do averages in arr
+            for row in range(indexes.shape[0]):
+                mean_value.append(np.mean(self._y[indexes[row]]))
+        else:
+            arr_test = X[self.col].to_numpy()
+            _, indexes = self.tree.query(arr_test, k=self.k)
+            # find points and do averages in arr
+            for row in range(indexes.shape[0]):
+                mean_value.append(np.mean(self._y[indexes[row]]))
+        return mean_value
 
 

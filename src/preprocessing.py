@@ -30,44 +30,56 @@ def smote_apply(X_train, y_train, threshold=5000):
 
 class SmoteRegression(BaseEstimator, TransformerMixin):
     """
-
     Create balanced dataset for value > and < to treshold. Aims at imprving accuracy on high value houses
+    We develop a method similar to SMOGN
+    Based on: http://proceedings.mlr.press/v74/branco17a/branco17a.pdf
 
-    Add Examples
-    Add explanation
+    Example:
+
+        sm = SmoteRegression(threshold=2000, ratio=1.0)
+        X, y = sm.fit(X=X_train, y=y_train)  ## Check if Threshold is fine at the given level
+        X, y = sm.fit_sample(X=X_train, y=y_train)
+
     """
-    def __init__(self, threshold=2000, ratio=1.0, random_state=0, smote=None):
+    def __init__(self, threshold=2000, ratio=1.0, random_state=0):
         """
 
-        :param threshold:
-        :param ratio:
+        :param threshold: Threshold above which you over-sample your individuals
+        :param ratio: Ratio of (individual below threshold)/ (individual over threshold)
         :param random_state:
+
         """
         self.threshold = threshold
         self.ratio = ratio
         self.random_state = random_state
-        self.smote_ = smote
+        self.smote_ = None
 
     def fit(self, X, y=None):
         """
+        Fit the model to check that  SMOTE class is instanciated correctly - Can be some problem with threshold if not
+        correctly set (like (individual below threshold)/ (individual over threshold) > ratio )
 
-        :param X:
-        :param y:
-        :param target_name:
-        :return:
+        :param X: pd.DataFrame of input data
+        :param y: vector np.Array of pd.Series of taregt variable
+        :return: self
         """
         # Instantiate SMOTE from ImbLearn
         self.smote_ = SMOTE(random_state=self.random_state, ratio=self.ratio)
 
         return self
 
-    def transform(self, X, y):
+    def fit_sampple(self, X, y):
+        """
+        Fit and resample the data to have a new dataset of size
+        (individual below threshold) + (individual below threshold) * ratio
+
+        :param X: pd.DataFrame of input data
+        :param y: vector np.Array of pd.Series of taregt variable
+        :return: X : pd.DataFrame of resampled data
+                 y : vector np.Array of pd.Series of target variable
         """
 
-        :param X:
-        :param y:
-        :return:
-        """
+        self.fit(X=X, y=y)
         # Add assertion
 
         X.loc[:, 'target'] = y
