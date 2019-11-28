@@ -16,6 +16,9 @@ class KFoldTargetEncoder(base.BaseEstimator, base.TransformerMixin):
     """
     Use K-Fold target encoding for categorical variable to reduce overfitting in target encoding
     Follows SKLearn API
+
+    Example:
+
     """
     def __init__(self, n_fold=5, verbosity=False, discardOriginal_col=False):
         """
@@ -51,12 +54,12 @@ class KFoldTargetEncoder(base.BaseEstimator, base.TransformerMixin):
         assert (self.colname in X.columns)
 
         self.targetName = 'target_'
-        X = pd.concat([X, pd.Series(self._y, name='target_')], axis=1)
+        X = pd.concat([X.reset_index(drop=True), pd.Series(self._y, name='target_')], axis=1)
         mean_of_target = X[self.targetName].mean()
         max_of_target = X[self.targetName].max()
         min_of_target = X[self.targetName].min()
 
-        kf = KFold(n_splits=self.n_fold, shuffle=False, random_state=2019)
+        kf_ = KFold(n_splits=self.n_fold, shuffle=False, random_state=2019)
 
         col_mean_name = self.colname + '_' + 'mean'
         col_max_name = self.colname + '_' + 'max'
@@ -65,7 +68,7 @@ class KFoldTargetEncoder(base.BaseEstimator, base.TransformerMixin):
         X[col_max_name] = np.nan
         X[col_min_name] = np.nan
 
-        for tr_ind, val_ind in kf.split(X):
+        for tr_ind, val_ind in kf_.split(X):
             X_tr, X_val = X.iloc[tr_ind], X.iloc[val_ind]
             X.loc[X.index[val_ind], col_mean_name] = X_val[self.colname].map(
                 X_tr.groupby(self.colname)[self.targetName].mean())
@@ -193,17 +196,18 @@ def Get_Dist_N(X_train, y_train, thresh, X_test=None, y_test=None):
 
 
 class AvgValueKNeighbors(BaseEstimator, TransformerMixin):
-"""
-Class to compute mean price of K nearest houses in terms of geographical positioning
-The class implements cKDTree which are binary tree optimised for nearest neightboor lookup:
-https://docs.scipy.org/doc/scipy/reference/generated/scipy.spatial.cKDTree.html
+    """
+    Class to compute mean price of K nearest houses in terms of geographical positioning
+    The class implements cKDTree which are binary tree optimised for nearest neightboor lookup:
+    https://docs.scipy.org/doc/scipy/reference/generated/scipy.spatial.cKDTree.html
 
-Example:
+    Example:
 
-test = AvgValueKNeighbors(k=2)
-test.fit_transform(X, y)
+    test = AvgValueKNeighbors(k=2)
+    test.fit_transform(X, y)
 
-"""
+    """
+
     def __init__(self, k=3):
         """
         :param k: Number of neighbors to consider in the computation
@@ -215,7 +219,7 @@ test.fit_transform(X, y)
         self._y = None
         self.arr = None
 
-    def fit(self, X, y, col=['longitude','latitude']):
+    def fit(self, X, y, col=['longitude', 'latitude']):
 
         """
         Sub-select the column
@@ -241,20 +245,24 @@ test.fit_transform(X, y)
         If y is passed, the X will be considered same as training, if no y is passed X will be considered testing data
         :param X: pd.DataFrame, either training data or testing data
         :param y: np.Array
-        :return:
+        :return: X
         """
         mean_value = []
         if y is not None:
             _, indexes = self.tree.query(self.arr, k=self.k)
-            #find points and do averages in arr
-            for row in range(indexes.shape[0]):
-                mean_value.append(np.mean(self._y[indexes[row]]))
-        else:
-            arr_test = X[self.col].to_numpy()
-            _, indexes = self.tree.query(arr_test, k=self.k)
             # find points and do averages in arr
             for row in range(indexes.shape[0]):
                 mean_value.append(np.mean(self._y[indexes[row]]))
-        return mean_value
+
+        else:
+            arr_test = X[self.col].to_numpy()
+            _, indexes = self.tree.query(arr_test, k=self.k)
+
+            # find points and do averages in arr
+            for row in range(indexes.shape[0]):
+                mean_value.append(np.mean(self._y[indexes[row]]))
+
+        X.loc[:, 'avg_' + str(self.k) + '_nb'] = mean_value
+        return X
 
 
