@@ -149,50 +149,91 @@ def Train_Dist_N(df, thresh):
     
     return mean_value
 
-def Get_Dist_N(X_train, y_train, thresh, X_test=None, y_test=None):
+
+class AvgValueDistNeighbors(BaseEstimator, TransformerMixin):
     """
-    function computing the average price of the houses in a given radius for train and test set
-    Input train: df with longitude, latitude and value 
-    Input thresh: max distance to houses to consider in KM
-    Input test: not mandatory, if nothing passed compute only on the traning, if dataframe passed, return computation for the test set 
-                based on value and distance from the training set
-    
-    output mean value: list of value to be concatenated on datasets
+    Class to compute mean price of houses within a gisven distance
+    The class implements cKDTree which are binary tree optimised for nearest neightboor lookup:
+    https://docs.scipy.org/doc/scipy/reference/generated/scipy.spatial.cKDTree.html
+
+    Example:
+
+    test = AvgValueDistNeighbors(d=500)
+    test.fit_transform(X, y)
+
     """
-    y_train = pd.DataFrame(y_train).rename(columns={0: "value"})
-    train = pd.concat([X_train, y_train], axis=1)
 
-    arr_l = train[['longitude', 'latitude']].to_numpy()
-    
-    if X_test is None:
-        empty = np.zeros((arr_l.shape[0],arr_l.shape[0]))
+    def __init__(self, d=500):
+        """
+        :param d: radius distance to neighbors to consider in the computation
+        """
+        self.d = d
+        self.r = None
+        self.fitted = False
+        self.tree = None
+        self.col = None
+        self._y = None
+        self.arr = None
 
-        for i in range(arr_l.shape[0]):
-            for j in range(arr_l.shape[0]):
-                empty[i, j] = haversine(arr_l[i], arr_l[j])  # long lat of 1 point
-        
+    @staticmethod
+    def convert_d_to_r(d):
+        """
+        cKDTree take r as input, but its not user friedly.
+        At Kanaga position on earth, 0.00144555 = 160.35 m
+
+        This finction takes for input a meter distance and turn into a radian based measure
+        :param d: meter distance
+        :return: radian based distance
+        """
+        return (d / 160.35) * 0.00144555
+
+    def fit(self, X, y, col=['longitude', 'latitude']):
+
+        """
+        Sub-select the column
+        Fit the KDTree and save vector y for usage in testing mode if necessary
+
+        Conversion from radius to distance at Kanaga location: 0.00144555 = 160.35 m
+
+        :param X: pd.DataFrame of shape [n_individual]x[nb_features]
+        :param y: np.array of shape [n_individual]x1
+        :param col: str, column name to be selected for nearest neighbors
+        :return: self
+        """
+        self.r = self.convert_d_to_r(self.d)
+        self._y = y
+        self.col = col
+        self.arr = X[self.col].to_numpy()
+        self.tree = scipy.spatial.cKDTree(self.arr)
+        return self
+
+    def transform(self, X, y=None):
+        """
+        Query tree for k nearest neighbors, compute mean value of selected indexes and return mean house value for
+        closest house
+
+        If y is passed, the X will be considered same as training, if no y is passed X will be considered testing data
+        :param X: pd.DataFrame, either training data or testing data
+        :param y: np.Array
+        :return: X
+        """
         mean_value = []
-        for k in range(arr_l.shape[0]):
-            ind = NeightborLessThan(arr = empty[k], n = len(empty[k]), thresh = thresh)
-            mean_value.append(train.reset_index(drop = True).loc[ind , 'value'].mean())
-                
-    else:
-        y_test = pd.DataFrame(y_test).rename(columns={0 : "value"})
-        test = pd.concat([X_test.reset_index(drop=True), y_test], axis=1)
+        if y is not None:
+            indexes = self.tree.query_ball_point(self.arr, r=self.r)
+            # find points and do averages in arr
+            for row in range(indexes.shape[0]):
+                mean_value.append(np.mean(self._y[indexes[row]]))
 
-        arr_test = test[['longitude', 'latitude']].to_numpy()
-        empty = np.zeros((arr_test.shape[0], arr_l.shape[0]))
+        else:
+            arr_test = X[self.col].to_numpy()
+            indexes = self.tree.query_ball_point(arr_test, r=self.r)
 
-        for i in range(arr_test.shape[0]):
-            for j in range(arr_l.shape[0]):
-                empty[i, j] = haversine(arr_test[i], arr_l[j])  # long lat of 1 point
-                
-        mean_value = []
-        for k in range(arr_test.shape[0]):
-            ind = NeightborLessThan(arr=empty[k], n=len(empty[k]), thresh=thresh)
-            mean_value.append(train.reset_index(drop=True).loc[ind, 'value'].mean())
-        
-    return mean_value
+            # find points and do averages in arr
+            for row in range(indexes.shape[0]):
+                mean_value.append(np.mean(self._y[indexes[row]]))
+
+        X.loc[:, 'avg_' + str(self.d) + '_nb'] = mean_value
+        return X
 
 
 class AvgValueKNeighbors(BaseEstimator, TransformerMixin):
