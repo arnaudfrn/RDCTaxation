@@ -3,6 +3,7 @@ import numpy as np
 from imblearn.over_sampling import SMOTE
 from sklearn.base import BaseEstimator, TransformerMixin
 
+
 class SmoteRegression(BaseEstimator, TransformerMixin):
     """
     Create balanced dataset for value > and < to treshold. Aims at imprving accuracy on high value houses
@@ -43,7 +44,7 @@ class SmoteRegression(BaseEstimator, TransformerMixin):
 
         return self
 
-    def fit_sampple(self, X, y):
+    def fit_sample(self, X, y):
         """
         Fit and resample the data to have a new dataset of size
         (individual below threshold) + (individual below threshold) * ratio
@@ -71,8 +72,8 @@ def smote_apply(X_train, y_train, threshold=5000):
     """
     Create balanced dataset for value > and < to treshold. Aims at imprving accuracy on high value houses
 
-    :X_train pd.DataFrame of trainisng set
-    :y_train pd.DataFrame of traget variable
+    :X_train pd.DataFrame of training set
+    :y_train pd.DataFrame of target variable
     :threshold value separating the two class to balance
 
     X_train: pd.DataFrame

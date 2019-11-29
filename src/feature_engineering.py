@@ -1,10 +1,13 @@
 import pandas as pd 
 import numpy as np
+import scipy.spatial
 from src.metrics import  MAPE
 from src.preprocessing import impute_basic, feature_preselection, smote_apply
 from sklearn import base
 from sklearn.model_selection import KFold
 from haversine import haversine, Unit
+from sklearn.base import BaseEstimator, TransformerMixin
+
 
 
 def dist_feats(df, feat_name):   
@@ -45,7 +48,7 @@ class KFoldTargetEncoder(base.BaseEstimator, base.TransformerMixin):
         self._X = None
         self.encodedName = None
 
-    def fit(self, X, y, colname):
+    def fit(self, X, y, colname=None):
         """
         Fit the encoder in a out-of-fold manner, when fold does not contain the desired category then it impute by the
          mean across all categories
@@ -129,6 +132,15 @@ class KFoldTargetEncoder(base.BaseEstimator, base.TransformerMixin):
                 X = X.drop(self.colname, axis=1)
 
             return X
+
+    def fit_transform(self, X, y=None, **fit_params):
+        """
+        Encoders that utilize the target must make sure that the training data are transformed with:
+            transform(X, y)
+        and not with:
+            transform(X)
+        """
+        return self.fit(X, y, **fit_params).transform(X, y)
 
 
 def NeightborLessThan(arr, n, thresh): 
@@ -243,6 +255,15 @@ class AvgValueDistNeighbors(BaseEstimator, TransformerMixin):
         X.loc[:, 'avg_' + str(self.d) + '_nb'] = mean_value
         return X
 
+    def fit_transform(self, X, y=None, **fit_params):
+        """
+        Encoders that utilize the target must make sure that the training data are transformed with:
+            transform(X, y)
+        and not with:
+            transform(X)
+        """
+        return self.fit(X, y, **fit_params).transform(X, y)
+
 
 class AvgValueKNeighbors(BaseEstimator, TransformerMixin):
     """
@@ -313,5 +334,14 @@ class AvgValueKNeighbors(BaseEstimator, TransformerMixin):
 
         X.loc[:, 'avg_' + str(self.k) + '_nb'] = mean_value
         return X
+    
+    def fit_transform(self, X, y=None, **fit_params):
+        """
+        Encoders that utilize the target must make sure that the training data are transformed with:
+            transform(X, y)
+        and not with:
+            transform(X)
+        """
+        return self.fit(X, y, **fit_params).transform(X, y)
 
 
