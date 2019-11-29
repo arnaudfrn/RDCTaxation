@@ -18,7 +18,15 @@ class KFoldTargetEncoder(base.BaseEstimator, base.TransformerMixin):
     Follows SKLearn API
 
     Example:
+    For test set application
+    test = KFoldTargetEncoder(n_fold=5)
+    test.fit(X, y).transform(X_test)
 
+    or
+
+    for train set application
+    test = KFoldTargetEncoder(n_fold=5)
+    test.fit(X, y).transform(X, y)
     """
     def __init__(self, n_fold=5, verbosity=False, discardOriginal_col=False):
         """
