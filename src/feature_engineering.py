@@ -31,6 +31,7 @@ class KFoldTargetEncoder(base.BaseEstimator, base.TransformerMixin):
     test = KFoldTargetEncoder(n_fold=5)
     test.fit(X, y).transform(X, y)
     """
+
     def __init__(self, n_fold=5, verbosity=False, discardOriginal_col=False):
         """
 
@@ -47,6 +48,7 @@ class KFoldTargetEncoder(base.BaseEstimator, base.TransformerMixin):
         self._y = None
         self._X = None
         self.encodedName = None
+        self.dict_target = None
 
     def fit(self, X, y, colname=None):
         """
@@ -75,9 +77,13 @@ class KFoldTargetEncoder(base.BaseEstimator, base.TransformerMixin):
         col_mean_name = self.colname + '_' + 'mean'
         col_max_name = self.colname + '_' + 'max'
         col_min_name = self.colname + '_' + 'min'
-        X[col_mean_name] = np.nan
-        X[col_max_name] = np.nan
-        X[col_min_name] = np.nan
+
+        self.dict_target = {col_mean_name: mean_of_target,
+                            col_max_name: max_of_target,
+                            col_min_name: min_of_target}
+
+        for colname in [col_mean_name, col_max_name, col_min_name]:
+            X[colname] = np.nan
 
         for tr_ind, val_ind in kf_.split(X):
             X_tr, X_val = X.iloc[tr_ind], X.iloc[val_ind]
@@ -98,6 +104,15 @@ class KFoldTargetEncoder(base.BaseEstimator, base.TransformerMixin):
 
         return self
 
+    @staticmethod
+    def _list_duplicates(d):
+        """
+        For debugging the dict dd in self.transform(X)
+        """
+        seen = set()
+        duplicates = set(x for x in list(d.keys()) if x in seen or seen.add(x))
+        return list(duplicates)
+
     def transform(self, X, y=None):
         """
         If train set is passed, MUST pass y vector as well.
@@ -110,24 +125,30 @@ class KFoldTargetEncoder(base.BaseEstimator, base.TransformerMixin):
         if y is None:
             for encod in self.encodedName:
                 mean = self._X[[self.colname, encod]].groupby(self.colname).mean().reset_index()
-                # print(mean)
+
                 dd = {}
                 for index, row in mean.iterrows():
                     dd[row[self.colname]] = row[encod]
 
                 X[encod] = X[self.colname]
-                X = X.replace({encod: dd})
+                # Fill by overall mean
+                X.loc[:, encod] = X[encod].map(dd).fillna(self.dict_target[encod])
             return X
 
         else:
             X = self._X
-            if self.verbosity:
-                encoded_feature = X[col_mean_name].values
-                print('Correlation between the new feature, {} and, {} is {}.'.format(col_mean_name,
-                                                                                      self.targetName,
-                                                                                      np.corrcoef(
-                                                                                          X[self.targetName].values,
-                                                                                          encoded_feature)[0][1]))
+
+            if self.verbosity:  ## Bug
+                raise NotImplementedError
+
+                #for encod in self.encodedName:
+                 #   encoded_feature = X[encod].values
+                 #   print('Correlation between the new feature, {} and, {} is {}.'.format(encod,
+                 #                                                                     self.targetName,
+                 #                                                                     np.corrcoef(
+                 #                                                                         X[self.targetName].values,
+                 #                                                                         encoded_feature)[0][1]))
+
             if self.discardOriginal_col:
                 X = X.drop(self.colname, axis=1)
 
@@ -237,12 +258,18 @@ class AvgValueDistNeighbors(BaseEstimator, TransformerMixin):
         :param y: np.Array
         :return: X
         """
+        overall_mean = np.mean(self._y)
         mean_value = []
         if y is not None:
             indexes = self.tree.query_ball_point(self.arr, r=self.r)
             # find points and do averages in arr
             for row in range(indexes.shape[0]):
-                mean_value.append(np.mean(self._y[indexes[row]]))
+                # print(indexes[row])
+                if len(indexes[row]) == 0:
+                    mean_value.append(overall_mean)  # If no house close, append the overall mean price of all houses
+                else:
+                    mean_value.append(np.mean(self._y[indexes[row]]))
+
 
         else:
             arr_test = X[self.col].to_numpy()
@@ -250,8 +277,12 @@ class AvgValueDistNeighbors(BaseEstimator, TransformerMixin):
 
             # find points and do averages in arr
             for row in range(indexes.shape[0]):
-                mean_value.append(np.mean(self._y[indexes[row]]))
+                if len(indexes[row]) == 0:
+                    mean_value.append(overall_mean)
+                else:
+                    mean_value.append(np.mean(self._y[indexes[row]]))
 
+        # Create col in the original Df
         X.loc[:, 'avg_' + str(self.d) + '_nb'] = mean_value
         return X
 
@@ -334,7 +365,7 @@ class AvgValueKNeighbors(BaseEstimator, TransformerMixin):
 
         X.loc[:, 'avg_' + str(self.k) + '_nb'] = mean_value
         return X
-    
+
     def fit_transform(self, X, y=None, **fit_params):
         """
         Encoders that utilize the target must make sure that the training data are transformed with:

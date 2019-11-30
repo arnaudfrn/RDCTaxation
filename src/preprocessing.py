@@ -39,9 +39,6 @@ class SmoteRegression(BaseEstimator, TransformerMixin):
         :param y: vector np.Array of pd.Series of taregt variable
         :return: self
         """
-        # Instantiate SMOTE from ImbLearn
-        self.smote_ = SMOTE(random_state=self.random_state, ratio=self.ratio)
-
         return self
 
     def fit_sample(self, X, y):
@@ -55,8 +52,8 @@ class SmoteRegression(BaseEstimator, TransformerMixin):
                  y : vector np.Array of pd.Series of target variable
         """
 
-        self.fit(X=X, y=y)
-        # Add assertion
+        # Instantiate SMOTE from ImbLearn
+        self.smote_ = SMOTE(random_state=self.random_state, ratio=self.ratio)
 
         X.loc[:, 'target'] = y
         col_names = list(X.columns)
