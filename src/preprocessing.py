@@ -62,6 +62,7 @@ class SmoteRegression(BaseEstimator, TransformerMixin):
         X, bool_target = self.smote_.fit_sample(X, bool_target)
         X = pd.DataFrame(X, columns=col_names)
         y = X['target'].values.ravel()
+        X = X.drop('target', axis=1)
         return X, y
 
 
