@@ -32,9 +32,9 @@ class KFoldTargetEncoder(base.BaseEstimator, base.TransformerMixin):
     test.fit(X, y).transform(X, y)
     """
 
-    def __init__(self, n_fold=5, verbosity=False, discardOriginal_col=False):
+    def __init__(self, col=None,  n_fold=5, verbosity=False, discardOriginal_col=False):
         """
-
+        :param col: colname to encode - can only manage one column for now
         :param n_fold: Number of folds to use in the CV, default is 5
         :param verbosity: Give info at the end of training on correlation between new features and target
         Default is False
@@ -43,14 +43,14 @@ class KFoldTargetEncoder(base.BaseEstimator, base.TransformerMixin):
         self.n_fold = n_fold
         self.verbosity = verbosity
         self.discardOriginal_col = discardOriginal_col
-        self.colname = None
+        self.col = col
         self.targetName = None
         self._y = None
         self._X = None
         self.encodedName = None
         self.dict_target = None
 
-    def fit(self, X, y, colname=None):
+    def fit(self, X, y):
         """
         Fit the encoder in a out-of-fold manner, when fold does not contain the desired category then it impute by the
          mean across all categories
@@ -60,12 +60,14 @@ class KFoldTargetEncoder(base.BaseEstimator, base.TransformerMixin):
         :param colname: Name of column to target encode, must be string
         :return: Self
         """
+
+        assert (self.col is not None)
+        assert (self.col in X.columns)
+
+        # Moving to lists
+        #assertTrue(set(a).issuperset(set(b)))
+
         self._y = y
-        self.colname = colname
-
-        assert (type(self.colname) == str)
-        assert (self.colname in X.columns)
-
         self.targetName = 'target_'
         X = pd.concat([X.reset_index(drop=True), pd.Series(self._y, name='target_')], axis=1)
         mean_of_target = X[self.targetName].mean()
@@ -74,9 +76,9 @@ class KFoldTargetEncoder(base.BaseEstimator, base.TransformerMixin):
 
         kf_ = KFold(n_splits=self.n_fold, shuffle=False, random_state=2019)
 
-        col_mean_name = self.colname + '_' + 'mean'
-        col_max_name = self.colname + '_' + 'max'
-        col_min_name = self.colname + '_' + 'min'
+        col_mean_name = self.col + '_' + 'mean'
+        col_max_name = self.col + '_' + 'max'
+        col_min_name = self.col + '_' + 'min'
 
         self.dict_target = {col_mean_name: mean_of_target,
                             col_max_name: max_of_target,
@@ -87,12 +89,12 @@ class KFoldTargetEncoder(base.BaseEstimator, base.TransformerMixin):
 
         for tr_ind, val_ind in kf_.split(X):
             X_tr, X_val = X.iloc[tr_ind], X.iloc[val_ind]
-            X.loc[X.index[val_ind], col_mean_name] = X_val[self.colname].map(
-                X_tr.groupby(self.colname)[self.targetName].mean())
-            X.loc[X.index[val_ind], col_max_name] = X_val[self.colname].map(
-                X_tr.groupby(self.colname)[self.targetName].max())
-            X.loc[X.index[val_ind], col_min_name] = X_val[self.colname].map(
-                X_tr.groupby(self.colname)[self.targetName].min())
+            X.loc[X.index[val_ind], col_mean_name] = X_val[self.col].map(
+                X_tr.groupby(self.col)[self.targetName].mean())
+            X.loc[X.index[val_ind], col_max_name] = X_val[self.col].map(
+                X_tr.groupby(self.col)[self.targetName].max())
+            X.loc[X.index[val_ind], col_min_name] = X_val[self.col].map(
+                X_tr.groupby(self.col)[self.targetName].min())
 
         X[col_mean_name].fillna(mean_of_target, inplace=True)
         X[col_max_name].fillna(max_of_target, inplace=True)
@@ -124,13 +126,13 @@ class KFoldTargetEncoder(base.BaseEstimator, base.TransformerMixin):
         """
         if y is None:
             for encod in self.encodedName:
-                mean = self._X[[self.colname, encod]].groupby(self.colname).mean().reset_index()
+                mean = self._X[[self.col, encod]].groupby(self.col).mean().reset_index()
 
                 dd = {}
                 for index, row in mean.iterrows():
-                    dd[row[self.colname]] = row[encod]
+                    dd[row[self.col]] = row[encod]
 
-                X[encod] = X[self.colname]
+                X[encod] = X[self.col]
                 # Fill by overall mean
                 X.loc[:, encod] = X[encod].map(dd).fillna(self.dict_target[encod])
             return X
@@ -138,19 +140,11 @@ class KFoldTargetEncoder(base.BaseEstimator, base.TransformerMixin):
         else:
             X = self._X
 
-            if self.verbosity:  ## Bug
+            if self.verbosity:
                 raise NotImplementedError
 
-                #for encod in self.encodedName:
-                 #   encoded_feature = X[encod].values
-                 #   print('Correlation between the new feature, {} and, {} is {}.'.format(encod,
-                 #                                                                     self.targetName,
-                 #                                                                     np.corrcoef(
-                 #                                                                         X[self.targetName].values,
-                 #                                                                         encoded_feature)[0][1]))
-
             if self.discardOriginal_col:
-                X = X.drop(self.colname, axis=1)
+                X = X.drop(self.col, axis=1)
 
             return X
 
