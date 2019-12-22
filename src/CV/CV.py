@@ -1,6 +1,7 @@
 import os
 import shutil
 
+import torch
 from torchvision import transforms
 from torchvision import datasets
 from torch.utils.data import DataLoader
@@ -22,7 +23,7 @@ class HouseDataset(Dataset):
         self.df_y = df_y
 
     def __len__(self):
-        return len(self.files)
+        return len(self.df_x)
 
     def __getitem__(self, idx):
         # given that the response variable is the house price
