@@ -1,25 +1,42 @@
-# Import ??
+import os
+import shutil
+
+from torchvision import transforms
+from torchvision import datasets
+from torch.utils.data import DataLoader
+from torchvision import models
+import torch.nn as nn # Add on classifier
+from torch import optim # Loss and optimizer
 
 
-def deep_feature_extraction(img):
+class HouseDataset(Dataset):
     """
-    extract feature from images using transfer learning.
-    :img string of image name
-    
-    feature: np.array of dim 1x25088
+    Custom dataset class for Houses dataset
+    Index through each tiled house and its price
     """
-    
-    try:
-        img = Image.open(img)
-        target_size = (224, 224)
-        img = img.resize(target_size)
-        x = image.img_to_array(img)
-        x = np.expand_dims(x, axis=0)
-        x = preprocess_input(x)
-        model = VGG16(weights='imagenet', include_top=False)
-        preds = model.predict(x)
-        features = preds.reshape((preds.shape[0], 7 * 7 * 512))
-        return features
-    except FileNotFoundError:
-        print("missing picture number " + img)
-        pass
+
+    def __init__(self, df_x, df_y, path, transform=None):
+        self.path = path
+        self.transform = transform
+        self.df_x = df_x
+        self.df_y = df_y
+
+    def __len__(self):
+        return len(self.files)
+
+    def __getitem__(self, idx):
+        # given that the response variable is the house price
+        # we will pass that along with the respective house
+        if torch.is_tensor(idx):
+            idx = idx.tolist()
+
+        img_name = os.path.join(self.path,
+                                self.df_x[['image']].iloc[idx][0])
+        image = io.imread(img_name)
+        target = self.df_y[['price']].iloc[idx][0]
+        sample = {'image': image, 'target': target}
+
+        if self.transform:
+            sample = self.transform(sample)
+
+        return sample
